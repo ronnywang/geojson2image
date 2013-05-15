@@ -1,0 +1,9 @@
+#!/usr/bin/env php
+<?php
+
+ini_set('memory_limit', '512m');
+include(__DIR__ . '/GeoJSON2Image.php');
+$json = json_decode(file_Get_Contents($_SERVER['argv'][1]));
+$ret = GeoJSON2Image::json2image($json);
+imagepng($ret['image'], 'output.png');
+print_r($ret['boundry']);
