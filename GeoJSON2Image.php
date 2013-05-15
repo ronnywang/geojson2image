@@ -129,11 +129,12 @@ class GeoJSON2Image
      * @param object $json 
      * @param array $boundry 
      * @param int $max_size 
+     * @param array $draw_options : background_color : array(r,g,b)
      * @static
      * @access public
      * @return void
      */
-    public static function drawJSON($gd, $json, $boundry, $max_size)
+    public static function drawJSON($gd, $json, $boundry, $max_size, $draw_options = array())
     {
         $x_delta = $boundry[1] - $boundry[0];
         $y_delta = $boundry[3] - $boundry[2];
@@ -147,12 +148,17 @@ class GeoJSON2Image
             break;
 
         case 'Feature':
-            // TODO: load color info from feature properties
-            self::drawJSON($gd, $json->geometry, $boundry, $max_size);
+            self::drawJSON($gd, $json->geometry, $boundry, $max_size, (array)($json->properties));
             break;
 
         case 'MultiPolygon':
-            $color = imagecolorallocate($gd, rand(0, 255), rand(0, 255), rand(0, 255));
+            if (array_key_exists('background_color', $draw_options)) {
+                $color = imagecolorallocate($gd, $draw_options['background_color'][0], $draw_options['background_color'][1], $draw_options['background_color'][2]);
+            } else {
+                // random color if no background_color
+                $color = imagecolorallocate($gd, rand(0, 255), rand(0, 255), rand(0, 255));
+            }
+
             foreach ($json->coordinates as $polygons) {
                 foreach ($polygons as $linestrings) {
                     $points = array();
