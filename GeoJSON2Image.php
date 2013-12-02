@@ -291,34 +291,51 @@ class GeoJSON2Image
 
     }
 
-    /**
-     * get GD Image From GeoJSON
-     * 
-     * @param object $json 
-     * @param int $max_size
-     * @access public
-     * @return object image: GD object
-     *                boundry: boundry
-     */
-    public static function json2image($json, $max_size = 2000)
+    public function GeoJSON2Image($json)
     {
-        // 先找到長寬
-        $boundry = self::getBoundry($json);
+        $this->json = $json;
+    }
 
-        $x_delta = $boundry[1] - $boundry[0];
-        $y_delta = $boundry[3] - $boundry[2];
-        $max_delta = max($x_delta, $y_delta);
+    protected $_boundry = null;
+
+    public function setBoundry($boundry)
+    {
+        $this->_boundry = $boundry;
+    }
+
+    protected $_size = 400;
+
+    public function setSize($size)
+    {
+        $this->_size = $size;
+    }
+
+    public function draw()
+    {
+        $size = $this->_size;
+        // 先找到長寬
+        $boundry = !is_null($this->_boundry) ? $this->_boundry : self::getBoundry($this->json);
+
         $gd = imagecreatetruecolor(
-            floor($max_size * $x_delta / $max_delta),
-            floor($max_size * $y_delta / $max_delta)
+            $size,
+            $size
         );
-        $bg_color = imagecolorallocate($gd, 0, 0, 0);
+        $bg_color = imagecolorallocate($gd, 254, 254, 254);
         imagecolortransparent($gd, $bg_color);
-        self::drawJSON($gd, $json, $boundry, $max_size);
-        return array(
-            'image' => $gd,
-            'boundry' => $boundry,
-        );
+        imagefill($gd, 0, 0, $bg_color);
+        $boundry[4] = 0;
+        if ($boundry[1] > $boundry[0]) {
+            self::drawJSON($gd, $this->json, $boundry, $size);
+        } else {
+            $boundry[1] += 360;
+            self::drawJSON($gd, $this->json, $boundry, $size);
+
+            $boundry[1] -= 360;
+            $boundry[0] -= 360;
+            self::drawJSON($gd, $this->json, $boundry, $size);
+        }
+        header('Content-Type: image/png');
+        imagepng($gd);
     }
 }
 
