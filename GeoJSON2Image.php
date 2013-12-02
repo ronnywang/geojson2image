@@ -310,7 +310,7 @@ class GeoJSON2Image
         $this->_size = $size;
     }
 
-    public function draw()
+    public function json2image()
     {
         $size = $this->_size;
         // 先找到長寬
@@ -334,8 +334,17 @@ class GeoJSON2Image
             $boundry[0] -= 360;
             self::drawJSON($gd, $this->json, $boundry, $size);
         }
+        return array(
+            'image' => $gd,
+            'boundry' => $boundry,
+        );
+    }
+
+    public function draw()
+    {
+        $ret = $this->json2image();
         header('Content-Type: image/png');
-        imagepng($gd);
+        imagepng($ret['image']);
     }
 }
 
