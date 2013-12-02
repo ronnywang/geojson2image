@@ -107,6 +107,17 @@ class GeoJSON2Image
         }
     }
 
+    protected static function pixelX($x)
+    {
+        return ($x + 180) / 360;
+    }
+
+    protected static function pixelY($y)
+    {
+        $sin_y = sin($y * pi() / 180);
+        return (0.5 - log((1 + $sin_y) / (1 - $sin_y)) / (4 * pi()));
+    }
+
     /**
      * Tranfrom geojson coordinates to image coordinates
      * 
@@ -119,13 +130,29 @@ class GeoJSON2Image
      */
     public static function transformPoint($point, $boundry, $max_size)
     {
+        if ($point[0] == 180 or $point[0] == -180) {
+            return false;
+        }
+        $x_delta = self::pixelX($boundry[1]) - self::pixelX($boundry[0]);
+        $y_delta = self::pixelY($boundry[3]) - self::pixelY($boundry[2]);
+
+        $new_point = array();
+        $p = function($a){
+            $a += 180;
+            if ($a > 360) {
+                $a -= 360;
+            }
+            return $a;
+        };
+        $new_point[0] = floor((self::pixelX($p($point[0]) + $boundry[4]) - self::pixelX($p($boundry[0]) + $boundry[4])) * $max_size / $x_delta);
+        $new_point[1] = floor((self::pixelY($boundry[3]) - self::pixelY($point[1])) * $max_size / $y_delta);
+        return $new_point;
         $x_delta = $boundry[1] - $boundry[0];
         $y_delta = $boundry[3] - $boundry[2];
-        $max_delta = max($x_delta, $y_delta);
 
         return array(
-            ($point[0] - $boundry[0]) * $max_size / $max_delta,
-            ($boundry[3] - $point[1]) * $max_size / $max_delta,
+            ($point[0] - $boundry[0]) * $max_size / $x_delta,
+            ($boundry[3] - $point[1]) * $max_size / $y_delta,
         );
     }
 
