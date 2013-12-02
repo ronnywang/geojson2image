@@ -191,7 +191,7 @@ class GeoJSON2Image
             self::drawJSON($gd, $json->geometry, $boundry, $max_size, (array)($json->properties));
             break;
 
-        case 'MultiPolygon':
+        case 'Polygon':
             if (array_key_exists('background_color', $draw_options)) {
                 $color = imagecolorallocate($gd, $draw_options['background_color'][0], $draw_options['background_color'][1], $draw_options['background_color'][2]);
             } else {
@@ -213,14 +213,26 @@ class GeoJSON2Image
                     }
                     imagefilledpolygon($gd, $points, count($points) / 2, $color);
                 }
+        case 'MultiPolygon':
+            foreach ($json->coordinates as $polygon) {
+                $j = new StdClass;
+                $j->type = 'Polygon';
+                $j->coordinates = $polygon;
+                self::drawJSON($gd, $j, $boundry, $max_size, $draw_options);
             }
             break;
 
         case 'Point':
         case 'MultiPoint':
+            foreach ($json->coordinates as $coordinate) {
+                $j = new StdClass;
+                $j->type = 'Point';
+                $j->coordinates = $coordinates;
+                self::drawJSON($gd, $j, $boundry, $max_size, $draw_options);
+            }
+            break;
         case 'LineString':
         case 'MultiLineString':
-        case 'Polygon':
         default:
             throw new Exception("Unsupported GeoJSON type:{$json->type}");
         }
