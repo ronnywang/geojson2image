@@ -40,6 +40,13 @@ class GeoJSON2Image
     public static function getBoundry($json)
     {
         switch ($json->type) {
+        case 'GeometryCollection':
+            $return_boundry = null;
+            foreach ($json->geometries as $geometry) {
+                $return_boundry = self::computeBoundry($return_boundry, self::getBoundry($geometry));
+            }
+            return $return_boundry;
+
         case 'FeatureCollection':
             $return_boundry = null;
             foreach ($json->features as $feature) {
@@ -141,6 +148,12 @@ class GeoJSON2Image
         $max_delta = max($x_delta, $y_delta);
 
         switch ($json->type) {
+        case 'GeometryCollection':
+            foreach ($json->geometries as $geometry) {
+                self::drawJSON($gd, $geometry, $boundry, $max_size, $draw_options);
+            }
+            break;
+
         case 'FeatureCollection':
             foreach ($json->features as $feature) {
                 self::drawJSON($gd, $feature, $boundry, $max_size);
