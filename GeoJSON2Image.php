@@ -193,26 +193,50 @@ class GeoJSON2Image
 
         case 'Polygon':
             if (array_key_exists('background_color', $draw_options)) {
-                $color = imagecolorallocate($gd, $draw_options['background_color'][0], $draw_options['background_color'][1], $draw_options['background_color'][2]);
+                $background_color = imagecolorallocate($gd, $draw_options['background_color'][0], $draw_options['background_color'][1], $draw_options['background_color'][2]);
             } else {
                 // random color if no background_color
-                $color = imagecolorallocate($gd, rand(0, 255), rand(0, 255), rand(0, 255));
+                $background_color = imagecolorallocate($gd, rand(0, 255), rand(0, 255), rand(0, 255));
             }
 
-            foreach ($json->coordinates as $polygons) {
-                foreach ($polygons as $linestrings) {
-                    $points = array();
-                    if (count($linestrings) <= 3) {
-                        // skip 2 points
-                        continue 2;
-                    }
-                    foreach ($linestrings as $point) {
-                        $new_point = self::transformPoint($point, $boundry, $max_size);
-                        $points[] = floor($new_point[0]);
-                        $points[] = floor($new_point[1]);
-                    }
-                    imagefilledpolygon($gd, $points, count($points) / 2, $color);
+            if (array_key_exists('border_color', $draw_options)) {
+                $border_color = imagecolorallocate($gd, $draw_options['border_color'][0], $draw_options['border_color'][1], $draw_options['border_color'][2]);
+            } else {
+                $border_color = imagecolorallocate($gd, 0, 0, 0);
+            }
+
+            if (array_key_exists('border_size', $draw_options)) {
+                $border_size = $draw_options['border_size'];
+            } else {
+                $border_size = 3;
+            }
+            foreach ($json->coordinates as $linestrings) {
+                $points = array();
+                if ($linestrings[0] != $linestrings[count($linestrings) - 1]) {
+                    $linestrings[] = $linestrings[0];
                 }
+                if (count($linestrings) <= 3) {
+                    // skip 2 points
+                    continue 2;
+                }
+                foreach ($linestrings as $point) {
+                    if (!$new_point = self::transformPoint($point, $boundry, $max_size)) {
+                        continue;
+                    }
+                    $points[] = floor($new_point[0]);
+                    $points[] = floor($new_point[1]);
+                }
+                if (count($points) < 3) {
+                    continue;
+                }
+                imagefilledpolygon($gd, $points, count($points) / 2, $background_color);
+                if ($border_size) {
+                    imagesetthickness($gd, $border_size);
+                    imagepolygon($gd, $points, count($points) / 2, $border_color);
+                }
+            }
+            break;
+
         case 'MultiPolygon':
             foreach ($json->coordinates as $polygon) {
                 $j = new StdClass;
