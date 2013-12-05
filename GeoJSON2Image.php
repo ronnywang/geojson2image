@@ -283,8 +283,40 @@ class GeoJSON2Image
                 self::drawJSON($gd, $j, $boundry, $max_size, $draw_options);
             }
             break;
+
         case 'LineString':
+            $last_point = null;
+
+            if (array_key_exists('border_color', $draw_options)) {
+                $border_color = imagecolorallocate($gd, $draw_options['border_color'][0], $draw_options['border_color'][1], $draw_options['border_color'][2]);
+            } else {
+                $border_color = imagecolorallocate($gd, 0, 0, 0);
+            }
+            if (array_key_exists('border_size', $draw_options)) {
+                $border_size = $draw_options['border_size'];
+            } else {
+                $border_size = 3;
+            }
+            foreach ($json->coordinates as $point) {
+                $new_point = self::transformPoint($point, $boundry, $max_size);
+                if (!is_null($last_point)) {
+                    imagesetthickness($gd, $border_size);
+                    imageline($gd, $last_point[0], $last_point[1], $new_point[0], $new_point[1], $border_color);
+                }
+
+                $last_point = $new_point;
+            }
+            break;
+
         case 'MultiLineString':
+            foreach ($json->coordinates as $coordinate) {
+                $j = new StdClass;
+                $j->type = 'LineString';
+                $j->coordinates = $coordinates;
+                self::drawJSON($gd, $j, $boundry, $max_size, $draw_options);
+            }
+            break;
+
         default:
             throw new Exception("Unsupported GeoJSON type:{$json->type}");
         }
