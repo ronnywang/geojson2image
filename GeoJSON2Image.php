@@ -210,8 +210,10 @@ class GeoJSON2Image
             } else {
                 $border_size = 3;
             }
+
+            $filled_points = array();
             foreach ($json->coordinates as $linestrings) {
-                $points = array();
+                $border_points = array();
                 if ($linestrings[0] != $linestrings[count($linestrings) - 1]) {
                     $linestrings[] = $linestrings[0];
                 }
@@ -223,18 +225,21 @@ class GeoJSON2Image
                     if (!$new_point = self::transformPoint($point, $boundry, $max_size)) {
                         continue;
                     }
-                    $points[] = floor($new_point[0]);
-                    $points[] = floor($new_point[1]);
+                    $border_points[] = floor($new_point[0]);
+                    $filled_points[] = floor($new_point[0]);
+                    $border_points[] = floor($new_point[1]);
+                    $filled_points[] = floor($new_point[1]);
                 }
-                if (count($points) < 3) {
+                if (count($border_points) < 3) {
                     continue;
                 }
-                imagefilledpolygon($gd, $points, count($points) / 2, $background_color);
                 if ($border_size) {
                     imagesetthickness($gd, $border_size);
-                    imagepolygon($gd, $points, count($points) / 2, $border_color);
+                    imagepolygon($gd, $border_points, count($border_points) / 2, $border_color);
                 }
             }
+
+            imagefilledpolygon($gd, $filled_points, count($filled_points) / 2, $background_color);
             break;
 
         case 'MultiPolygon':
