@@ -123,12 +123,13 @@ class GeoJSON2Image
      * 
      * @param array $point 
      * @param array $boundry 
-     * @param int $max_size 
+     * @param int $width
+     * @param int $height
      * @static
      * @access public
      * @return void
      */
-    public static function transformPoint($point, $boundry, $max_size)
+    public static function transformPoint($point, $boundry, $width, $height)
     {
         if ($point[0] == 180 or $point[0] == -180) {
             return false;
@@ -144,15 +145,15 @@ class GeoJSON2Image
             }
             return $a;
         };
-        $new_point[0] = floor((self::pixelX($p($point[0]) + $boundry[4]) - self::pixelX($p($boundry[0]) + $boundry[4])) * $max_size / $x_delta);
-        $new_point[1] = floor((self::pixelY($boundry[3]) - self::pixelY($point[1])) * $max_size / $y_delta);
+        $new_point[0] = floor((self::pixelX($p($point[0]) + $boundry[4]) - self::pixelX($p($boundry[0]) + $boundry[4])) * $width / $x_delta);
+        $new_point[1] = floor((self::pixelY($boundry[3]) - self::pixelY($point[1])) * $height / $y_delta);
         return $new_point;
         $x_delta = $boundry[1] - $boundry[0];
         $y_delta = $boundry[3] - $boundry[2];
 
         return array(
-            ($point[0] - $boundry[0]) * $max_size / $x_delta,
-            ($boundry[3] - $point[1]) * $max_size / $y_delta,
+            ($point[0] - $boundry[0]) * $width / $x_delta,
+            ($boundry[3] - $point[1]) * $height / $y_delta,
         );
     }
 
@@ -162,13 +163,14 @@ class GeoJSON2Image
      * @param Image $gd 
      * @param object $json 
      * @param array $boundry 
-     * @param int $max_size 
+     * @param int $width
+     * @param int $height
      * @param array $draw_options : background_color : array(r,g,b)
      * @static
      * @access public
      * @return void
      */
-    public static function drawJSON($gd, $json, $boundry, $max_size, $draw_options = array())
+    public static function drawJSON($gd, $json, $boundry, $width, $height, $draw_options = array())
     {
         $x_delta = $boundry[1] - $boundry[0];
         $y_delta = $boundry[3] - $boundry[2];
@@ -177,36 +179,36 @@ class GeoJSON2Image
         switch ($json->type) {
         case 'GeometryCollection':
             foreach ($json->geometries as $geometry) {
-                self::drawJSON($gd, $geometry, $boundry, $max_size, $draw_options);
+                self::drawJSON($gd, $geometry, $boundry, $width, $height, $draw_options);
             }
             break;
 
         case 'FeatureCollection':
             foreach ($json->features as $feature) {
-                self::drawJSON($gd, $feature, $boundry, $max_size);
+                self::drawJSON($gd, $feature, $boundry, $width, $height);
             }
             break;
 
         case 'Feature':
-            self::drawJSON($gd, $json->geometry, $boundry, $max_size, (array)($json->properties));
+            self::drawJSON($gd, $json->geometry, $boundry, $width, $height, (array)($json->properties));
             break;
 
         case 'Polygon':
-            if (array_key_exists('background_color', $draw_options)) {
-                $background_color = imagecolorallocate($gd, $draw_options['background_color'][0], $draw_options['background_color'][1], $draw_options['background_color'][2]);
+            if (array_key_exists('polygon_background_color', $draw_options) and $draw_options['polygon_background_color'] !== false) {
+                $background_color = imagecolorallocate($gd, $draw_options['polygon_background_color'][0], $draw_options['polygon_background_color'][1], $draw_options['polygon_background_color'][2]);
             } else {
-                // random color if no background_color
-                $background_color = imagecolorallocate($gd, rand(0, 255), rand(0, 255), rand(0, 255));
+                // no color if no polygon_background_color
+                $background_color = null;
             }
 
-            if (array_key_exists('border_color', $draw_options)) {
-                $border_color = imagecolorallocate($gd, $draw_options['border_color'][0], $draw_options['border_color'][1], $draw_options['border_color'][2]);
+            if (array_key_exists('polygon_border_color', $draw_options)) {
+                $border_color = imagecolorallocate($gd, $draw_options['polygon_border_color'][0], $draw_options['polygon_border_color'][1], $draw_options['polygon_border_color'][2]);
             } else {
                 $border_color = imagecolorallocate($gd, 0, 0, 0);
             }
 
-            if (array_key_exists('border_size', $draw_options)) {
-                $border_size = $draw_options['border_size'];
+            if (array_key_exists('polygon_border_size', $draw_options)) {
+                $border_size = $draw_options['polygon_border_size'];
             } else {
                 $border_size = 3;
             }
@@ -222,7 +224,7 @@ class GeoJSON2Image
                     continue 2;
                 }
                 foreach ($linestrings as $point) {
-                    if (!$new_point = self::transformPoint($point, $boundry, $max_size)) {
+                    if (!$new_point = self::transformPoint($point, $boundry, $width, $height)) {
                         continue;
                     }
                     $border_points[] = floor($new_point[0]);
@@ -239,7 +241,9 @@ class GeoJSON2Image
                 }
             }
 
-            imagefilledpolygon($gd, $filled_points, count($filled_points) / 2, $background_color);
+            if (!is_null($background_color) and count($filled_points) >= 6) {
+                imagefilledpolygon($gd, $filled_points, count($filled_points) / 2, $background_color);
+            }
             break;
 
         case 'MultiPolygon':
@@ -247,33 +251,35 @@ class GeoJSON2Image
                 $j = new StdClass;
                 $j->type = 'Polygon';
                 $j->coordinates = $polygon;
-                self::drawJSON($gd, $j, $boundry, $max_size, $draw_options);
+                self::drawJSON($gd, $j, $boundry, $width, $height, $draw_options);
             }
             break;
 
         case 'Point':
-            if (array_key_exists('background_color', $draw_options)) {
-                $background_color = imagecolorallocate($gd, $draw_options['background_color'][0], $draw_options['background_color'][1], $draw_options['background_color'][2]);
+            if (array_key_exists('point_background_color', $draw_options)) {
+                $background_color = imagecolorallocate($gd, $draw_options['point_background_color'][0], $draw_options['point_background_color'][1], $draw_options['point_background_color'][2]);
             } else {
-                $background_color = imagecolorallocate($gd, rand(0, 255), rand(0, 255), rand(0, 255));
+                // default point color is red
+                $background_color = imagecolorallocate($gd, 255, 0, 0);
             }
 
-            if (array_key_exists('border_size', $draw_options)) {
-                $border_size = $draw_options['border_size'];
+            if (array_key_exists('point_border_size', $draw_options)) {
+                $border_size = $draw_options['point_border_size'];
             } else {
                 $border_size = 1;
             }
 
             $point_size = 10;
 
-            if (array_key_exists('border_color', $draw_options)) {
-                $border_color = imagecolorallocate($gd, $draw_options['border_color'][0], $draw_options['border_color'][1], $draw_options['border_color'][2]);
+            if (array_key_exists('point_border_color', $draw_options)) {
+                $border_color = imagecolorallocate($gd, $draw_options['point_border_color'][0], $draw_options['point_border_color'][1], $draw_options['point_border_color'][2]);
             } else {
+                // default point border color is black
                 $border_color = imagecolorallocate($gd, 0, 0, 0);
             }
 
             $point = $json->coordinates;
-            $new_point = self::transformPoint($point, $boundry, $max_size);
+            $new_point = self::transformPoint($point, $boundry, $width, $height);
             imagefilledellipse($gd, $new_point[0], $new_point[1], $point_size, $point_size, $background_color);
             for ($i = 0; $i < $border_size; $i ++) {
                 imageellipse($gd, $new_point[0], $new_point[1], $point_size - 1 + $i, $point_size - 1 + $i, $border_color);
@@ -284,26 +290,26 @@ class GeoJSON2Image
             foreach ($json->coordinates as $coordinate) {
                 $j = new StdClass;
                 $j->type = 'Point';
-                $j->coordinates = $coordinates;
-                self::drawJSON($gd, $j, $boundry, $max_size, $draw_options);
+                $j->coordinates = $coordinate;
+                self::drawJSON($gd, $j, $boundry, $width, $height, $draw_options);
             }
             break;
 
         case 'LineString':
             $last_point = null;
 
-            if (array_key_exists('border_color', $draw_options)) {
-                $border_color = imagecolorallocate($gd, $draw_options['border_color'][0], $draw_options['border_color'][1], $draw_options['border_color'][2]);
+            if (array_key_exists('line_border_color', $draw_options)) {
+                $border_color = imagecolorallocate($gd, $draw_options['line_border_color'][0], $draw_options['line_border_color'][1], $draw_options['line_border_color'][2]);
             } else {
                 $border_color = imagecolorallocate($gd, 0, 0, 0);
             }
-            if (array_key_exists('border_size', $draw_options)) {
-                $border_size = $draw_options['border_size'];
+            if (array_key_exists('line_border_size', $draw_options)) {
+                $border_size = $draw_options['line_border_size'];
             } else {
                 $border_size = 3;
             }
             foreach ($json->coordinates as $point) {
-                $new_point = self::transformPoint($point, $boundry, $max_size);
+                $new_point = self::transformPoint($point, $boundry, $width, $height);
                 if (!is_null($last_point)) {
                     imagesetthickness($gd, $border_size);
                     imageline($gd, $last_point[0], $last_point[1], $new_point[0], $new_point[1], $border_color);
@@ -317,8 +323,8 @@ class GeoJSON2Image
             foreach ($json->coordinates as $coordinate) {
                 $j = new StdClass;
                 $j->type = 'LineString';
-                $j->coordinates = $coordinates;
-                self::drawJSON($gd, $j, $boundry, $max_size, $draw_options);
+                $j->coordinates = $coordinate;
+                self::drawJSON($gd, $j, $boundry, $width, $height, $draw_options);
             }
             break;
 
@@ -340,48 +346,45 @@ class GeoJSON2Image
         $this->_boundry = $boundry;
     }
 
-    protected $_size = 400;
+    protected $_width = 400;
+    protected $_height = 400;
 
-    public function setSize($size)
+    public function setSize($width, $height)
     {
-        $this->_size = $size;
+        $this->_width = $width;
+        $this->_height = $height;
     }
 
-    public function json2image()
+    public function draw($file = null)
     {
-        $size = $this->_size;
         // 先找到長寬
         $boundry = !is_null($this->_boundry) ? $this->_boundry : self::getBoundry($this->json);
 
         $gd = imagecreatetruecolor(
-            $size,
-            $size
+            $this->_width,
+            $this->_height
         );
         $bg_color = imagecolorallocate($gd, 254, 254, 254);
         imagecolortransparent($gd, $bg_color);
         imagefill($gd, 0, 0, $bg_color);
         $boundry[4] = 0;
         if ($boundry[1] > $boundry[0]) {
-            self::drawJSON($gd, $this->json, $boundry, $size);
+            self::drawJSON($gd, $this->json, $boundry, $this->_width, $this->_height);
         } else {
             $boundry[1] += 360;
-            self::drawJSON($gd, $this->json, $boundry, $size);
+            self::drawJSON($gd, $this->json, $boundry, $this->_width, $this->_height);
 
             $boundry[1] -= 360;
             $boundry[0] -= 360;
-            self::drawJSON($gd, $this->json, $boundry, $size);
+            self::drawJSON($gd, $this->json, $boundry, $this->_width, $this->_height);
         }
-        return array(
-            'image' => $gd,
-            'boundry' => $boundry,
-        );
-    }
 
-    public function draw()
-    {
-        $ret = $this->json2image();
-        header('Content-Type: image/png');
-        imagepng($ret['image']);
+        if (is_null($file)) {
+            header('Content-Type: image/png');
+            imagepng($gd);
+        } else {
+            imagepng($gd, $file);
+        }
     }
 }
 
