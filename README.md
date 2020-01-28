@@ -5,14 +5,14 @@ This is a PHP class for generate Image from GeoJSON.
 ### How to use
 
 ```php
-include('./GeoJSON2Image.php');
+include('./geojson2image/GeoJSON2Image.php');
 $max_size = 1000;
-$json = file_get_contents('./TaiwanCounty.json');
+$json = json_decode(file_get_contents('./geojson2image/TaiwanCounty.json'));
 
 $ret = new GeoJSON2Image($json, $max_size);
 
-$ret->image = './outputImage.png';   // GD Image object
 $ret->boundry = array(100, 120, 100, 120); // array(min_x, max_x, min_y, max_y) boundry
+$ret->draw('./image.png');   // GD Image object
 ```
 
 ### Files
