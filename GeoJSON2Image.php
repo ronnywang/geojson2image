@@ -5,13 +5,13 @@
  *
  * @copyright 2013-2013 Ronny Wang <ronnywang at gmail.com>
  * @license BSD License http://opensource.org/licenses/BSD-3-Clause
- * 
+ *
  */
 class GeoJSON2Image
 {
     /**
      * get boundry from 2 boundies
-     * 
+     *
      * @param array $b1 boundry
      * @param array $b2 boundry
      * @access protected
@@ -32,8 +32,8 @@ class GeoJSON2Image
 
     /**
      * get boundry from geojson
-     * 
-     * @param object $json 
+     *
+     * @param object $json
      * @access public
      * @return array(minx, maxx, miny, maxy)
      */
@@ -120,9 +120,9 @@ class GeoJSON2Image
 
     /**
      * Tranfrom geojson coordinates to image coordinates
-     * 
-     * @param array $point 
-     * @param array $boundry 
+     *
+     * @param array $point
+     * @param array $boundry
      * @param int $width
      * @param int $height
      * @static
@@ -159,10 +159,10 @@ class GeoJSON2Image
 
     /**
      * draw the GeoJSON on image
-     * 
-     * @param Image $gd 
-     * @param object $json 
-     * @param array $boundry 
+     *
+     * @param Image $gd
+     * @param object $json
+     * @param array $boundry
      * @param int $width
      * @param int $height
      * @param array $draw_options : background_color : array(r,g,b)
@@ -221,7 +221,7 @@ class GeoJSON2Image
                 }
                 if (count($linestrings) <= 3) {
                     // skip 2 points
-                    continue 2;
+                    break 2;
                 }
                 foreach ($linestrings as $point) {
                     if (!$new_point = self::transformPoint($point, $boundry, $width, $height)) {
